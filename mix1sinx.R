@@ -1,4 +1,4 @@
-
+##
 rm(list = ls())
 #setwd("/Users/yangwang/Documents/Biometrics-reviews/mixed poisson code")
 #setwd("/home/sam/Documents/WY/code")
