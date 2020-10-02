@@ -27,7 +27,7 @@ The defined "choose.hb.ker()" and "choose.hb.ts()" functions are the cross-valid
 
 The defined "simulation.ker()" and "simulation.ts()" are the simulation for 500 replications of the proposed method and the two-satge approach, respectively;
 
-The ploted figure saved as "cpfixed.eps" produces Figure 5 in the Web Appendices, and Figure 4in Respose to the comments;
+The ploted figure saved as "cpfixed.eps" produces Figure 5 in the Web Appendices, and Figure 4 in Respose to the comments;
 
 The ploted figure saved as "fixkxq.eps" produces Figure 6 in Respose to the comments.
 ```
