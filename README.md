@@ -13,7 +13,7 @@ intervals >= 0.15.2
 ker_ts_poisson_mix.R produces Figure 1 in the manuscript, Figure 3 in the Web Appendices, and Figure 1 and 3 in Respose to the comments.
 ```
 ```
-Illustrate the main functions contained in ker_ts_Poisson_mix.R code, as follows:
+Illustrate the main functions contained in ker_ts_poisson_mix.R code, as follows:
 
 The defined "data.gen.mix()" function is to generate the simulation data set where the number of obaservation times is random, and recurrent event is generated from a mixed Poisson process;
 
