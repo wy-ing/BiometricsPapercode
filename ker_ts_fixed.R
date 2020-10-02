@@ -72,8 +72,6 @@ data.gen<-function(
 }   #end of generate data
 
 
-###########simulation############
-
 ker<-function(x,h){ re<-0.75*(1-(x/h)^2)*(abs(x/h)<1)/h }   #epanechnikov kernel function
 
 beta.fun.ker<-function(data,beta,z,h){
@@ -199,7 +197,7 @@ shape.fun<-function(data,tim){
   })
   Flast<-c(Bmatrix%*%phat)
   return(list(Flast,Fhat))
-}   ###########the estimates for shape function
+}   #the estimates for shape function
 
 cvscore.ker<-function(data,beta1,beta2,z,h){
   obstime<-data[,2]
@@ -256,7 +254,7 @@ cvscore.ts<-function(data,beta1,beta2,z,h,Ft){
   cvl1<-sum(diag(solve(jac)%*%dfm))
   cvl2<-sum(ker(covar-z,h)*((beta[1]+beta[2]*(covar-z))*(count/Ft)-exp(beta[1]+beta[2]*(covar-z))))
   return(cvl1+cvl2)
-}   #########the cross-validation score function
+}   #the cross-validation score function
 choose.hb.ts<-function(data,z,Ft){
   hvalue<-seq(0.5,0.9,by=0.2)
   cvh<-function(z,h){
@@ -272,7 +270,7 @@ choose.hb.ts<-function(data,z,Ft){
   betaopt0<-cv.h[1,][opt.h]
   betaopt1<-cv.h[2,][opt.h]
   return(c(hopt,betaopt0,betaopt1))
-}   #########the cross-validation approach for bandwidth selection of the two-stage approach
+}   #the cross-validation approach for bandwidth selection of the two-stage approach
 ###################simulation for 500 replications################
 simulation.ker<-function(nr){
   All<-list()

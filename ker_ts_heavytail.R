@@ -170,6 +170,59 @@ beta.fun.ts<-function(data,beta,z,h,Ft){
   return(Newton(fun,beta))
 }  #newton-raphson iteration algorithm for the two-stage approach
 
+shape.fun<-function(data,tim){
+  Insub<-data[,1]
+  obstime<-data[,2]
+  count<-data[,3]
+  covar<-data[,4]
+  mtime<-data[,5]
+  mcount<-data[,6]
+  unmtime<-unname(tapply(mtime,Insub,unique))
+  unmcount<-unname(tapply(mcount,Insub,unique))
+  ordtime<-unique(sort(obstime))  
+  nordtime<-c(ordtime,len)
+  Matime<-as.matrix(cbind(c(0,ordtime),c(ordtime,len)))
+  Intime<-Intervals(Matime,closed=c(TRUE,TRUE),type="R")
+  
+  count0<-unname(unlist(tapply(count,Insub,function(x){c(0,x[-length(x)])})))
+  decount<-count-count0
+  obstime0<-unname(unlist(tapply(obstime,Insub,function(x){c(0,x[-length(x)])})))
+  Maobstime<-as.matrix(cbind(obstime0,obstime))
+  Inobstime<-Intervals(Maobstime,closed=c(TRUE,TRUE),type="R")
+  
+  Alist<-interval_included(Inobstime,Intime)
+  
+  Amatrix<-matrix(0,nrow = dim(Inobstime)[1],ncol = dim(Intime)[1])
+  Bmatrix<-matrix(0,nrow = nsub,ncol = dim(Intime)[1])
+  for (i in 1:dim(Inobstime)[1]) {
+    Amatrix[i,Alist[[i]]]<-1
+  }
+  for (i in 1:dim(Intime)[1]) {
+    Bmatrix[,i]<-1*(nordtime[i]<=unmtime)
+  }
+  p<-rep(1/dim(Intime)[1],dim(Intime)[1])
+  for (step in 1:10000) {
+    ##E-step
+    pa<-Amatrix%*%p
+    pb<-Bmatrix%*%p
+    D<-sapply(1:dim(Intime)[1],function(x){
+      re<-sum(decount*(Amatrix[,x]*p[x]/pa))+sum(unmcount*c((1-Bmatrix[,x])*p[x]/pb))
+    })
+    oldp<-p
+    ##M-step
+    p<-D/sum(D)
+    epslio<-1e-4
+    if(sum(abs(oldp-p))<epslio) break
+    #print(step)
+  }
+  phat<-p
+  Fhat<-sapply(tim,function(x){
+    sum(phat[which(nordtime<=x)])
+  })
+  Flast<-c(Bmatrix%*%phat)
+  return(list(Flast,Fhat))
+} ##shape function for estiamting the baseline function
+
 cvscore.ker<-function(data,beta1,beta2,z,h){
   obstime<-data[,2]
   count<-data[,3]
@@ -357,7 +410,7 @@ end<-Sys.time()
 end-start
 #calculate the regression function estimators, the derivative function estimators, 
 #the estimated and empirical standard errors, the coverage probility, and the baseline function estimators
-  tim.ker<-seq(0.1,9.9,by=0.2)
+  tim<-seq(0.1,9.9,by=0.2)
   tim.ts<-seq(0.05,9.95,by=0.1)
   zk<-seq(0.04,2.98,by=0.06)
   trub<-2*zk/9
@@ -414,7 +467,7 @@ end-start
   title(xlab = expression(z),ylab = expression("ARE"),line = 2)
   title(sub = list(expression("(e4)"),cex=1.2,font=1),mgp=c(2,1,0))
   
-  plot(tim.ker,mu.ker,pch=".",col=1,cex=5,ann = F,xaxt="n",ylim = c(2,40))
+  plot(tim,mu.ker,pch=".",col=1,cex=5,ann = F,xaxt="n",ylim = c(2,40))
   axis(1,0:10,0:10)
   title(xlab = expression(t),ylab = expression(mu(t)),line = 2)
   lines(tim.ts,mu.ts,lty=2,lwd=2,col=1)
