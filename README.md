@@ -8,7 +8,7 @@ intervals >= 0.15.2
 ```
 
 ### Code explanation 
-##### explanation the function of ker_ts_fixed.R code
+#### Explanation the code ker_ts_fixed.R 
 ```
 ker_ts_fixed.R produces Figure 5 in the Web Appendices, and Figure 4 and 6 in Respose to the comments
 ```
@@ -31,7 +31,7 @@ The ploted figure saved as "cpfixed.eps" produces Figure 5 in the Web Appendices
 
 The ploted figure saved as "fixkxq.eps" produces Figure 6 in Respose to the comments.
 ```
-##### explanation the function of ker_ts_fixed.R code
+#### Explanation the code ker_ts_fixed.R 
 ```
 The defined function "data.gen" 
 ```
