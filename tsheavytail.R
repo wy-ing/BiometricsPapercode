@@ -88,7 +88,7 @@ data.gen<-function(
 
 
 ker<-function(x,h){ re<-0.75*(1-(x/h)^2)*(abs(x/h)<1)/h }       #epanechnikov kernel function
-beta.fun<-function(data,beta,z,h,Ft){
+beta.fun.ts<-function(data,beta,z,h,Ft){
   obstime<-data[,2]
   count<-data[,3]
   covar<-data[,4]
@@ -174,7 +174,7 @@ shape.fun<-function(data,tim){
   Flast<-c(Bmatrix%*%phat)
   return(list(Flast,Fhat))
 } ##shape function for estiamting the baseline function
-cvscore<-function(data,beta1,beta2,z,h,Ft){
+cvscore.ts<-function(data,beta1,beta2,z,h,Ft){
   obstime<-data[,2]
   count<-data[,3]
   covar<-data[,4]
@@ -191,11 +191,11 @@ cvscore<-function(data,beta1,beta2,z,h,Ft){
   cvl2<-sum(ker(covar-z,h)*((beta[1]+beta[2]*(covar-z))*(count/Ft)-exp(beta[1]+beta[2]*(covar-z))))
   return(cvl1+cvl2)
 }  ###the corss-validation score function
-choose.hb<-function(data,z,Ft){
+choose.hb.ts<-function(data,z,Ft){
   hvalue<-seq(0.5,0.9,by=0.2)
   cvh<-function(z,h){
-    beta0<-beta.fun(data,beta,z,h,Ft)
-    cv<-cvscore(data,beta0[1],beta0[2],z,h,Ft)
+    beta0<-beta.fun.ts(data,beta,z,h,Ft)
+    cv<-cvscore.ts(data,beta0[1],beta0[2],z,h,Ft)
     return(c(beta0,cv))
   }
   cv.h<-sapply(hvalue,function(x){
@@ -208,7 +208,7 @@ choose.hb<-function(data,z,Ft){
   return(c(hopt,betaopt0,betaopt1))
 }  ##the corss-validation approach for bandwidth selection
 ################################simulation for 500 replications#####################
-est.sumlation<-function(nr,h){
+simulation.ts<-function(nr){
   All<-list()
   tim<-seq(0.05,9.95,by=0.1)
   zp<-seq(0.04,2.98,by=0.06)
@@ -225,7 +225,7 @@ est.sumlation<-function(nr,h){
     })
     
     bhopt<-sapply(zp,function(x){
-      re<-choose.hb(data,z=x,Ft)
+      re<-choose.hb.ts(data,z=x,Ft)
     })
     hopt<-bhopt[1,]
     gamma0<-bhopt[2,]
@@ -241,7 +241,7 @@ est.sumlation<-function(nr,h){
     
     Muall1<-Fall*exp(Heta1)
     
-    All[[i]]<-list(hopt,gamma1,Hbeta1,Muall1)
+    All[[i]]<-list(Hbeta1,gamma1,Muall1)
   }
   return(All)
 }
@@ -251,10 +251,10 @@ max.obs<-6
 sha<-1.5
 len<-10
 beta<-c(0.01,0.01)
-nr<-500
+nr<-1
 
-out<-est.sumlation(nr,h)
-save(out,file=paste(getwd(),"/tsheavytail.rda",sep=""))  ###save the simulation outcome
+out<-simulation.ts(nr)
+#save(out,file=paste(getwd(),"/tsheavytail.rda",sep=""))  ###save the simulation outcome
 end<-Sys.time()
 end-start
 #####calculate the regression function estimators, the derivative function estimators, 

@@ -341,7 +341,7 @@ simulation.ker<-function(nr){
   return(All)
 } ##the proposed method
 
-sumlation.ts<-function(nr){
+simulation.ts<-function(nr){
   All<-list()
   tim<-seq(0.05,9.95,by=0.1)
   zp<-seq(0.04,2.98,by=0.06)
@@ -385,7 +385,7 @@ len<-10
 beta<-c(0.01,0.01)
 nr<-500
 kerout<-simulation.ker(nr)
-tsout<-simulation.est(nr)
+tsout<-simulation.ts(nr)
 save(kerout,file=paste(getwd(),"/kerfixed.rda",sep=""))  ####save the simulation outcome 
 save(tsout,file=paste(getwd(),"/tsfixed.rda",sep=""))  ####save the simulation outcome 
 end<-Sys.time()

@@ -1,0 +1,425 @@
+rm(list = ls())
+setwd("/Users/yangwang/Documents/paper_code")
+library(data.table)
+library(intervals)
+f.mu<-function(x){8*sqrt(x)+4}
+f.phi<-function(x){x^2/9}
+
+start<-Sys.time()
+
+#create a dataset
+data.gen<-function(
+  nsub,                       #Sample size
+  max.obs,                    #Maximal number of observation for each individual
+  sha,                        #Weibull distribution parameter
+  len                         #length of study
+)
+{
+  Z1<-round(runif(nsub,0,3),4)         #define covariate
+  NumObs<-rep(nsub,0)
+  Mobs<-rep(nsub,0)
+  Mcoun<-rep(nsub,0)
+  
+  x<-round(rweibull(max.obs,sha,scale = 1),4)  #generate time for the first subject
+  while(x[1]>=len)            #if the first time larger than the length of study,generate time again
+    x<-round(rweibull(max.obs,sha,scale = 1),4)
+  for(j in 1:max.obs){
+    if(sum(x[1:j])<len)
+      k<-j
+  }                             #choose the cumulative time less than the length of study
+  indtimeObs<-cumsum(x[1:k])    #interarrival timews
+  NumObs[1]<-length(indtimeObs) #the number of observations for the first subject
+  Mobs[1]<-indtimeObs[length(indtimeObs)] # the maximum observation times for the first subject
+  
+  subj<-rep(1,NumObs[1])      #identification for the first subject
+  indcount<-rep(0,NumObs[1])  #cumulative counts
+  lambda<-rep(0,NumObs[1])
+  lambda[1]<-f.mu(indtimeObs[1])*exp(f.phi(Z1[1]))
+  indcount[1]<-rpois(1,lambda[1])  #cumulative count when observation only one
+  
+  if(NumObs[1]>1){
+    for(j in 2:NumObs[1]){
+      lambda[j]<-f.mu(indtimeObs[j])*exp(f.phi(Z1[1]))
+      indcount[j]<-indcount[j-1]+rpois(1,lambda[j]-lambda[j-1])
+    }     #end of j
+  }
+  
+  Mcoun[1]<-indcount[length(indtimeObs)] #the event counts at end of observation times for first subjecrt
+  lambda.t<-lambda
+  timeObs<-indtimeObs          #define observation time
+  count<-indcount              #define observation count
+  covar1<-rep(Z1[1],NumObs[1]) #covariate for subject1
+  Mobstime<-rep(Mobs[1],NumObs[1])     #define the maximum observation time
+  Mcount<-rep(Mcoun[1],NumObs[1])      #define the last event counts for subjest 1
+  
+  #To expand the database by adding the subsequence observations
+  for(i in 2:nsub){
+    x<-round(rweibull(max.obs,sha,scale = 1),4)  #generate time for the i subject
+    while(x[1]>=len)
+      x<-round(rweibull(max.obs,sha,scale = 1),4) #if the first time larger than the length of study,generate time again
+    for(j in 1:max.obs){
+      if(sum(x[1:j])<len)
+        k<-j
+    }                                 #choose the cumulative time less than the length of study
+    indtimeObs<-cumsum(x[1:k])        #interarrival time
+    NumObs[i]<-length(indtimeObs)     #the number of observations for the i subject
+    Mobs[i]<-indtimeObs[length(indtimeObs)]
+    
+    subj<-c(subj,rep(i,NumObs[i]))    #generate identification from i to nsub
+    indcount<-rep(0,NumObs[i])
+    lambda<-rep(0,NumObs[i])
+    lambda[1]<-f.mu(indtimeObs[1])*exp(f.phi(Z1[i]))
+    indcount[1]<-rpois(1,lambda[1])
+    if(NumObs[i]>1)
+      for(j in 2:NumObs[i]){
+        lambda[j]<-f.mu(indtimeObs[j])*exp(f.phi(Z1[i]))
+        indcount[j]<-indcount[j-1]+rpois(1,lambda[j]-lambda[j-1])
+      }
+    Mcoun[i]<-indcount[length(indtimeObs)]
+    lambda.t<-c(lambda.t,lambda)
+    timeObs<-c(timeObs,indtimeObs)      #combine all the observation
+    count<-c(count,indcount)            #combine all the count
+    covar1<-c(covar1,rep(Z1[i],NumObs[i]))#combine all the covariate1
+    Mobstime<-c(Mobstime,rep(Mobs[i],NumObs[i]))#combine all the maximum observation times
+    Mcount<-c(Mcount,rep(Mcoun[i],NumObs[i]))   #combine all the last event count
+  }
+  cbind(subj,timeObs,count,covar1,Mobstime,Mcount,lambda.t)
+}   #end of generate data
+
+
+ker<-function(x,h){  re<-0.75*(1-(x/h)^2)*(abs(x/h)<1)/h } #epanechnikov kernel function
+
+beta.fun.ker<-function(data,beta,z,h){
+  
+  obstime<-data[,2]
+  count<-data[,3]
+  covar<-data[,4]
+  mtime<-data[,5]
+  
+  fun<-function(beta){
+    
+    S<-sapply(obstime,function(x){
+      a0<-sum(exp(beta[1]*(covar-z)+beta[2]*(covar-z)^2)*ker(covar-z,h)*(mtime>=x))
+      a1<-sum(exp(beta[1]*(covar-z)+beta[2]*(covar-z)^2)*ker(covar-z,h)*(covar-z)*(mtime>=x))
+      a2<-sum(exp(beta[1]*(covar-z)+beta[2]*(covar-z)^2)*ker(covar-z,h)*(covar-z)^2*(mtime>=x))
+      a3<-sum(exp(beta[1]*(covar-z)+beta[2]*(covar-z)^2)*ker(covar-z,h)*(covar-z)^3*(mtime>=x))
+      a4<-sum(exp(beta[1]*(covar-z)+beta[2]*(covar-z)^2)*ker(covar-z,h)*(covar-z)^4*(mtime>=x))
+      if(a0==0){re<-c(0,0,0,0,0)}else{re<-c(a1/a0,a2/a0,a1^2/a0^2-a2/a0,a1*a2/a0^2-a3/a0,a2^2/a0^2-a4/a0)}
+    })
+    
+    #for each observed number T(il),calculate the at risk number of score function and hessian matrix
+    sum11<-sum(ker(covar-z,h)*count*(covar-z-S[1,]))
+    sum12<-sum(ker(covar-z,h)*count*((covar-z)^2-S[2,]))
+    df<-c(sum11,sum12)
+    sum21<-sum(ker(covar-z,h)*count*S[3,])
+    sum22<-sum(ker(covar-z,h)*count*S[4,])
+    sum23<-sum(ker(covar-z,h)*count*S[5,])
+    jac<-matrix(c(sum21,sum22,sum22,sum23),nr=2)
+    list(df=df,jac=jac)
+  }            #score function df and hessian matrix jac
+  
+  Newton<-function(fun,beta,eps=1e-5){
+    k<-0
+    repeat{
+      k<-k+1
+      beta1<-beta
+      obj<-fun(beta)
+      beta<-beta-solve(obj$jac,obj$df)
+      #print(obj)
+      if((beta-beta1)%*%(beta-beta1)<eps){
+        print(k)
+        return(beta)
+        break
+      }
+    }
+  }           #newton-raphson iteration algorithm
+  return(Newton(fun,beta))
+}#newton-raphson iteration algorithm for the proposed method
+
+beta.fun.ts<-function(data,beta,z,h,Ft){
+  obstime<-data[,2]
+  count<-data[,3]
+  covar<-data[,4]
+  
+  fun<-function(beta){
+    sum11<-sum(ker(covar-z,h)*(count/Ft-exp(beta[1]+beta[2]*(covar-z))))
+    sum12<-sum(ker(covar-z,h)*(covar-z)*(count/Ft-exp(beta[1]+beta[2]*(covar-z))))
+    df<-c(sum11,sum12)
+    sum21<--sum(ker(covar-z,h)*exp(beta[1]+beta[2]*(covar-z)))
+    sum22<--sum(ker(covar-z,h)*(covar-z)*exp(beta[1]+beta[2]*(covar-z)))
+    sum23<--sum(ker(covar-z,h)*(covar-z)^2*exp(beta[1]+beta[2]*(covar-z)))
+    jac<-matrix(c(sum21,sum22,sum22,sum23),nr=2)
+    list(df=df,jac=jac)
+  }            #score function df and hessian matrix jac
+  
+  Newton<-function(fun,beta,eps=1e-4){
+    k<-0
+    repeat{
+      k<-k+1
+      beta1<-beta
+      obj<-fun(beta)
+      beta<-beta-solve(obj$jac,obj$df)
+      #print(obj)
+      if((beta-beta1)%*%(beta-beta1)<eps){
+        print(k)
+        return(beta)
+        break
+      }
+    }
+  }          
+  return(Newton(fun,beta))
+}  #newton-raphson iteration algorithm for the two-stage approach
+
+cvscore.ker<-function(data,beta1,beta2,z,h){
+  obstime<-data[,2]
+  count<-data[,3]
+  covar<-data[,4]
+  mtime<-data[,5]
+  S<-sapply(obstime,function(x){
+    a0<-sum(exp(beta1*(covar-z)+beta2*(covar-z)^2)*ker(covar-z,h)*(mtime>=x))
+    a1<-sum(exp(beta1*(covar-z)+beta2*(covar-z)^2)*ker(covar-z,h)*(covar-z)*(mtime>=x))
+    a2<-sum(exp(beta1*(covar-z)+beta2*(covar-z)^2)*ker(covar-z,h)*(covar-z)^2*(mtime>=x))
+    a3<-sum(exp(beta1*(covar-z)+beta2*(covar-z)^2)*ker(covar-z,h)*(covar-z)^3*(mtime>=x))
+    a4<-sum(exp(beta1*(covar-z)+beta2*(covar-z)^2)*ker(covar-z,h)*(covar-z)^4*(mtime>=x))
+    if(a0==0){re<-c(0,0,0,0,0,0)}else{re<-c(a1/a0,a2/a0,a1^2/a0^2-a2/a0,a1*a2/a0^2-a3/a0,a2^2/a0^2-a4/a0,log(a0/nsub))}
+  })
+ 
+  sum11<-sum(ker(covar-z,h)^2*count^2*(covar-z-S[1,])^2)
+  sum12<-sum(ker(covar-z,h)^2*count^2*((covar-z)^2-S[2,])*(covar-z-S[1,]))
+  sum13<-sum(ker(covar-z,h)^2*count^2*((covar-z)^2-S[2,])^2)
+  dfm<-matrix(c(sum11,sum12,sum12,sum13),nr=2)
+  sum21<-sum(ker(covar-z,h)*count*S[3,])
+  sum22<-sum(ker(covar-z,h)*count*S[4,])
+  sum23<-sum(ker(covar-z,h)*count*S[5,])
+  jac<-matrix(c(sum21,sum22,sum22,sum23),nr=2)
+  
+  cvl1<-sum(diag(solve(jac)%*%dfm))
+  cvl2<-sum(ker(covar-z,h)*count*(beta1*(covar-z)+beta2*(covar-z)^2-S[6,]))
+  return(cvl1+cvl2)
+}#the corss-validation score function for the proposed method
+
+cvscore.ts<-function(data,beta1,beta2,z,h,Ft){
+  obstime<-data[,2]
+  count<-data[,3]
+  covar<-data[,4]
+  sum11<-sum(ker(covar-z,h)^2*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
+  sum12<-sum(ker(covar-z,h)^2*(covar-z)*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
+  sum13<-sum(ker(covar-z,h)^2*(covar-z)^2*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
+  dfm<-matrix(c(sum11,sum12,sum12,sum13),nr=2)
+  sum21<--sum(ker(covar-z,h)*exp(beta[1]+beta[2]*(covar-z)))
+  sum22<--sum(ker(covar-z,h)*(covar-z)*exp(beta[1]+beta[2]*(covar-z)))
+  sum23<--sum(ker(covar-z,h)*(covar-z)^2*exp(beta[1]+beta[2]*(covar-z)))
+  jac<-matrix(c(sum21,sum22,sum22,sum23),nr=2)
+  
+  cvl1<-sum(diag(solve(jac)%*%dfm))
+  cvl2<-sum(ker(covar-z,h)*((beta[1]+beta[2]*(covar-z))*(count/Ft)-exp(beta[1]+beta[2]*(covar-z))))
+  return(cvl1+cvl2)
+}  #the corss-validation score function for the two-satge approach
+
+choose.hb.ker<-function(data,z){
+  hvalue<-seq(0.5,0.9,by=0.2)
+  cvh<-function(z,h){
+    beta0<-beta.fun.ker(data,beta,z,h)
+    cv<-cvscore.ker(data,beta0[1],beta0[2],z,h)
+    return(c(beta0,cv))
+  }
+  cv.h<-sapply(hvalue,function(x){
+    re<-cvh(z,h=x)
+  })
+  opt.h<-which.max(cv.h[3,])
+  hopt<-hvalue[opt.h]
+  betaopt0<-cv.h[1,][opt.h]
+  betaopt1<-cv.h[2,][opt.h]
+  return(c(hopt,betaopt0,betaopt1))
+}#the corss-validation approach for bandwidth selection of the proposed method
+
+choose.hb.ts<-function(data,z,Ft){
+  hvalue<-seq(0.5,0.9,by=0.2)
+  cvh<-function(z,h){
+    beta0<-beta.fun.ts(data,beta,z,h,Ft)
+    cv<-cvscore.ts(data,beta0[1],beta0[2],z,h,Ft)
+    return(c(beta0,cv))
+  }
+  cv.h<-sapply(hvalue,function(x){
+    re<-cvh(z,h=x)
+  })
+  opt.h<-which.max(cv.h[3,])
+  hopt<-hvalue[opt.h]
+  betaopt0<-cv.h[1,][opt.h]
+  betaopt1<-cv.h[2,][opt.h]
+  return(c(hopt,betaopt0,betaopt1))
+} #the corss-validation approach for bandwidth selection of the two-stage approach
+
+###########simulation for 500 replications############
+simulation.ker<-function(nr){
+  All<-list()
+  for(i in 1:nr){
+    set.seed(100*i+i)
+    print(100*i+i)
+    
+    data<-data.gen(nsub,max.obs,sha,len)
+    obstime<-data[,2]
+    count<-data[,3]
+    covar<-data[,4]
+    mtime<-data[,5]
+    
+    zp<-seq(0.04,2.98,by=0.06)
+    
+  bhopt<-sapply(zp,function(x){
+      re<-choose.hb.ker(data,z=x)
+    })
+    hopt<-bhopt[1,]
+    hbeta1<-bhopt[2,]
+    hbeta2<-bhopt[3,]
+
+    hbeta0<-rep(0,50) 
+    hbeta0[1]<-hbeta1[1]*zp[1]  
+    for(j in 2:50){
+      hbeta0[j]<-(hbeta1[j]+hbeta1[j-1])*(zp[j]-zp[j-1])/2
+    }
+    Hbeta<-cumsum(hbeta0)  
+    
+    beta_covar<-sapply(covar,function(x){
+      ind<-order(abs(zp-x))[c(1,2)]
+      betau<-mean(Hbeta[ind])
+      return(betau)
+    })
+    
+    Mut<-sapply(obstime,function(x){
+      sum1<-sum(count*(obstime==x))
+      sum2<-sum(exp(beta_covar)*(obstime==x))
+      if(sum2==0){re<-0}else{re<-sum1/sum2}
+    })
+    
+    Tim<-seq(0.1,9.9,by=0.2)
+    
+    mu.t<-sapply(Tim,function(x){
+      index<-order(abs(obstime-x))[1:3]
+      mut<-mean(Mut[index])
+      return(mut)
+    })
+    All[[i]]<-list(Hbeta,hbeta1,mu.t)
+  }
+  return(All)
+}  #simulation study for 500 replications of the proposed method
+
+simulation.ts<-function(nr){
+  All<-list()
+  tim<-seq(0.05,9.95,by=0.1)
+  zp<-seq(0.04,2.98,by=0.06)
+  for(i in 1:nr){
+    set.seed(100*i+i)
+    print(100*i+i)
+    data<-data.gen(nsub,max.obs,sha,len)
+    Fvalue<-shape.fun(data,tim)
+    Fk<-Fvalue[[1]]
+    Fall<-Fvalue[[2]]
+    obstime<-data[,2]
+    Ft<-sapply(obstime,function(x){
+      mean(Fall[order(abs(tim-x))[1:3]])
+    })
+    
+    bhopt<-sapply(zp,function(x){
+      re<-choose.hb.ts(data,z=x,Ft)
+    })
+    hopt<-bhopt[1,]
+    gamma0<-bhopt[2,]
+    gamma1<-bhopt[3,]
+    
+    hbeta0<-rep(0,50) 
+    hbeta0[1]<-gamma1[1]*zp[1]  
+    for(j in 2:50){
+      hbeta0[j]<-(gamma1[j]+gamma1[j-1])*(zp[j]-zp[j-1])/2
+    }
+    Hbeta1<-cumsum(hbeta0) 
+    Heta1<-mean(gamma0-Hbeta1)
+    
+    Muall1<-Fall*exp(Heta1)
+    
+    All[[i]]<-list(Hbeta1,gamma1,Muall1)
+  }
+  return(All)
+} #simualtion study for 500 replications of the two-stage approach
+
+nsub<-300
+max.obs<-6
+sha<-1.5
+len<-10
+beta<-c(0.01,0.01)
+nr<-500
+
+kerout<-simulation.ker(nr)
+tsout<-simulation.ts(nr)
+save(kerout,file=paste(getwd(),"/kerheavytail.rda",sep=""))
+save(tsout,file=paste(getwd(),"/tsheavytail.rda",sep=""))
+
+end<-Sys.time()
+end-start
+#calculate the regression function estimators, the derivative function estimators, 
+#the estimated and empirical standard errors, the coverage probility, and the baseline function estimators
+  tim.ker<-seq(0.1,9.9,by=0.2)
+  tim.ts<-seq(0.05,9.95,by=0.1)
+  zk<-seq(0.04,2.98,by=0.06)
+  trub<-2*zk/9
+  Beta0.ts<-sapply(tsout,function(x)x[[1]])
+  Beta1.ts<-sapply(tsout,function(x)x[[2]])
+  Mu.ts<-sapply(tsout,function(x)x[[3]])
+  beta0.ts<-apply(Beta0.ts, 1, mean)
+  beta1.ts<-apply(Beta1.ts, 1, mean)
+  esd.ts<-apply(Beta1.ts, 1, sd)
+  mu.ts<-apply(Mu.ts, 1, mean)
+  Beta0.ker<-sapply(kerout,function(x)x[[1]])  
+  Beta1.ker<-sapply(kerout,function(x)x[[2]]) 
+  Mu.ker<-sapply(kerout,function(x)x[[3]])
+  beta0.ker<-apply(Beta0.ker,1,mean)             
+  beta1.ker<-apply(Beta1.ker,1,mean)
+  esd.ker<-apply(Beta1.ker,1,sd)
+  mu.ker<-apply(Mu.ker,1,mean)
+
+  ind<-seq(3,48,by=3)
+  zp<-zk[ind]
+  MCsd.ts<-round(esd.ts[ind],3)
+  MCsd.ker<-round(esd.ker[ind],3)
+  ARE<-MCsd.ts/MCsd.ker
+  
+  ########plot
+  postscript(file = paste(getwd(),"/cpheavytail.eps",sep = ""),onefile = FALSE,horizontal = FALSE)
+  par(mfrow=c(3,2),mar= c(4, 4, 2, 2))
+  plot(zk,beta1.ker,pch=".",cex=5,ann = F,xaxt="n",col=1,ylim = c(-0.2,1.2))
+  axis(1,seq(0,3,by=0.5),seq(0,3,by=0.5))
+  title(xlab = "z", ylab = expression(paste(phi^(1),(z))),line = 2)
+  lines(zk,beta1.ts,lty=2,lwd=2,col=1)
+  lines(zk,2*zk/9,lwd=2,lty=1,col=1)
+  legend("topleft",c("True curve","Proposed method","Two-satge method"),col = c(1,1,1),lty = c(1,3,2),lwd=c(1.5,1.8,1.5),bty = "o",cex = 0.9)
+  title(sub = list("(e1)",cex=1.2,font=1),mgp=c(2,1,0))
+  
+  plot(zk,beta0.ker,pch=".",cex=5,ann = F,xaxt="n",col=1,ylim = c(0,1))
+  axis(1,seq(0,3,by=0.5),seq(0,3,by=0.5))
+  title(xlab = "z", ylab = expression(paste(phi,(z))),line = 2)
+  lines(zk,beta0.ts,lty=2,lwd=2,col=1)
+  lines(zk,zk^2/9,lwd=2,lty=1,col=1)
+  legend("topleft",c("True curve","Proposed method","Two-satge method"),col = c(1,1,1),lty = c(1,3,2),lwd=c(1.5,1.8,1.5),bty = "o",cex = 0.9)
+  title(sub = list("(e2)",cex=1.2,font=1),mgp=c(2,1,0))
+  
+  plot(zk,esd.ker,pch=".",cex=5,col=1,ann = F,xaxt="n",ylim = c(0,1.5))
+  axis(1,seq(0,3,by=0.5),seq(0,3,by=0.5))
+  title(xlab = "z",ylab = "S.E.",line = 2)
+  lines(zk,esd.ts,lty=2.5,lwd=2,col=1)
+  legend("top",c("Proposed method","Two-satge method"),col = c(1,1),lty = c(3,2),lwd=c(2,1.5),bty = "o",cex=0.9)
+  title(sub = list("(e3)",cex=1.2,font=1),mgp=c(2,1,0))
+  
+  plot(zp,ARE,typ="b",lty=2,lwd=2,col=1,ann = F,xaxt="n",ylim = c(0,2))
+  axis(1,seq(0,3,by=0.5),seq(0,3,by=0.5))
+  abline(h=1,col=1,lwd=2)
+  title(xlab = expression(z),ylab = expression("ARE"),line = 2)
+  title(sub = list(expression("(e4)"),cex=1.2,font=1),mgp=c(2,1,0))
+  
+  plot(tim.ker,mu.ker,pch=".",col=1,cex=5,ann = F,xaxt="n",ylim = c(2,40))
+  axis(1,0:10,0:10)
+  title(xlab = expression(t),ylab = expression(mu(t)),line = 2)
+  lines(tim.ts,mu.ts,lty=2,lwd=2,col=1)
+  lines(tim,8*sqrt(tim)+4,lwd=2,lty=1,col=1)
+  legend("topleft",c("True curve","Proposed method","Two-satge method"),lwd = c(1.5,2,1.5),lty = c(1,3,2),col=c(1,1,1),bty = "o",cex = 0.9)
+  title(sub = list(expression("(e5)"),cex=1.2,font=1),mgp=c(2,1,0))
+  dev.off()
+  

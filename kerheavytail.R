@@ -229,11 +229,6 @@ simulation.est<-function(nr){
     Tim<-seq(0.1,9.9,by=0.2)
     
     mu.t<-sapply(Tim,function(x){
-      index<-which(between(obstime,x-0.1,x+0.1))
-      mut<-mean(Mut[index])
-      return(mut)
-    })
-    mu.t1<-sapply(Tim,function(x){
       index<-order(abs(obstime-x))[1:3]
       mut<-mean(Mut[index])
       return(mut)
@@ -264,7 +259,7 @@ simulation.est<-function(nr){
       Var[k]<-Sig1[1,1]/(nsub*hopt[k]^3)
   
     }
-    All[[i]]<-list(hopt,Hbeta,hbeta1,Var,mu.t,mu.t1)
+    All[[i]]<-list(hopt,Hbeta,hbeta1,Var,mu.t)
   }
   return(All)
 }
