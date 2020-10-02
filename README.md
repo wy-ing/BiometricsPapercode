@@ -8,9 +8,9 @@ intervals >= 0.15.2
 ```
 
 ### Code explanation 
-#### Explanation the code for ker_ts_Poisson_mix.R 
+#### Explanation the code for ker_ts_poisson_mix.R 
 ```
-ker_ts_Poisson_mix.R produces Figure 1 in the manuscript, Figure 3 in the Web Appendices, and Figure 1 and 3 in Respose to the comments.
+ker_ts_poisson_mix.R produces Figure 1 in the manuscript, Figure 3 in the Web Appendices, and Figure 1 and 3 in Respose to the comments.
 ```
 ```
 Illustrate the main functions contained in ker_ts_Poisson_mix.R code, as follows:
