@@ -242,17 +242,17 @@ cvscore.ts<-function(data,beta1,beta2,z,h,Ft){
   obstime<-data[,2]
   count<-data[,3]
   covar<-data[,4]
-  sum11<-sum(ker(covar-z,h)^2*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
-  sum12<-sum(ker(covar-z,h)^2*(covar-z)*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
-  sum13<-sum(ker(covar-z,h)^2*(covar-z)^2*(count/Ft-exp(beta[1]+beta[2]*(covar-z)))^2)
+  sum11<-sum(ker(covar-z,h)^2*(count/Ft-exp(beta1+beta2*(covar-z)))^2)
+  sum12<-sum(ker(covar-z,h)^2*(covar-z)*(count/Ft-exp(beta1+beta2*(covar-z)))^2)
+  sum13<-sum(ker(covar-z,h)^2*(covar-z)^2*(count/Ft-exp(beta1+beta2*(covar-z)))^2)
   dfm<-matrix(c(sum11,sum12,sum12,sum13),nr=2)
-  sum21<--sum(ker(covar-z,h)*exp(beta[1]+beta[2]*(covar-z)))
-  sum22<--sum(ker(covar-z,h)*(covar-z)*exp(beta[1]+beta[2]*(covar-z)))
-  sum23<--sum(ker(covar-z,h)*(covar-z)^2*exp(beta[1]+beta[2]*(covar-z)))
+  sum21<--sum(ker(covar-z,h)*exp(beta1+beta2*(covar-z)))
+  sum22<--sum(ker(covar-z,h)*(covar-z)*exp(beta1+beta2*(covar-z)))
+  sum23<--sum(ker(covar-z,h)*(covar-z)^2*exp(beta1+beta2*(covar-z)))
   jac<-matrix(c(sum21,sum22,sum22,sum23),nr=2)
   
   cvl1<-sum(diag(solve(jac)%*%dfm))
-  cvl2<-sum(ker(covar-z,h)*((beta[1]+beta[2]*(covar-z))*(count/Ft)-exp(beta[1]+beta[2]*(covar-z))))
+  cvl2<-sum(ker(covar-z,h)*((beta1+beta2*(covar-z))*(count/Ft)-exp(beta1+beta2*(covar-z))))
   return(cvl1+cvl2)
 }   #the cross-validation score function
 choose.hb.ts<-function(data,z,Ft){
