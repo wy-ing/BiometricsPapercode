@@ -523,7 +523,7 @@ simulation.est.mix<-function(nr){
   }
   return(All)
 } #the simulation study for 500 replications of the proposed method
-simulation.ts<-function(nr){
+simulation.ts.ran<-function(nr){
   All<-list()
   tim<-seq(0.05,9.95,by=0.1)
   zp<-seq(0.04,2.98,by=0.06)
@@ -568,7 +568,7 @@ beta<-c(0.01,0.01)
 nr<-500
 mixout<-simulation.est.mix(nr)
 kerout<-simulation.est.ran(nr)
-tsout<-simulation.ts(nr)
+tsout<-simulation.ts.ran(nr)
 save(kerout,file=paste(getwd(),"/kerpoisson.rda",sep=""))####save the simulation outcome
 save(mixout,file=paste(getwd(),"/kermixpoisson.rda",sep=""))
 save(tsout,file=paste(getwd(),"/tspoisson.rda",sep=""))
