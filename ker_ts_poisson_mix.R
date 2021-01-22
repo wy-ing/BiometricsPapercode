@@ -393,11 +393,12 @@ choose.hb.ts<-function(data,z,Ft){
   return(c(hopt,betaopt0,betaopt1))
 }#the cross-validation approach for bandwidth of the two-stage approach
 ############simulation for 500 replications#############
-simulation.est<-function(nr,data){
+simulation.est.ran<-function(nr){
   All<-list()
   for(i in 1:nr){
     set.seed(100*i+i)
     print(100*i+i)
+    data<-data.gen(nsub,max.obs,irate,len)
     obstime<-data[,2]
     count<-data[,3]
     covar<-data[,4]
@@ -457,13 +458,79 @@ simulation.est<-function(nr,data){
   }
   return(All)
 } #the simulation study for 500 replications of the proposed method
-simulation.ts<-function(nr,data){
+simulation.est.mix<-function(nr){
+  All<-list()
+  for(i in 1:nr){
+    set.seed(100*i+i)
+    print(100*i+i)
+    data<-data.gen.mix(nsub,max.obs,irate,len)
+    obstime<-data[,2]
+    count<-data[,3]
+    covar<-data[,4]
+    mtime<-data[,5]
+    zp<-seq(0.04,2.98,by=0.06)
+    bhopt<-sapply(zp,function(x){
+      re<-choose.hb(data,z=x)
+    })
+    hopt<-bhopt[1,]
+    hbeta1<-bhopt[2,]
+    hbeta2<-bhopt[3,]
+    Var<-rep()
+    hbeta0<-rep(0,50) 
+    hbeta0[1]<-hbeta1[1]*zp[1]  
+    for(j in 2:50){
+      hbeta0[j]<-(hbeta1[j]+hbeta1[j-1])*(zp[j]-zp[j-1])/2
+    }
+    Hbeta<-cumsum(hbeta0)  #####caculate regression function at zp
+    beta_covar<-sapply(covar,function(x){
+      ind<-order(abs(zp-x))[c(1,2)]
+      betau<-mean(Hbeta[ind])
+      return(betau)
+    })#####calculate the regression function at covariate points
+    
+    Mut<-sapply(obstime,function(x){
+      sum1<-sum(count*(obstime==x))
+      sum2<-sum(exp(beta_covar)*(obstime==x))
+      if(sum2==0){re<-0}else{re<-sum1/sum2}
+    })######calculate the baseline function at observation times
+    Tim<-seq(0.1,9.9,by=0.2)
+    mu.t<-sapply(Tim,function(x){
+      index<-which(between(obstime,x-0.1,x+0.1))
+      mut<-mean(Mut[index])
+      return(mut)
+    })#####calculate the baseline function at Tim points
+    for(k in 1:50){
+      V<-sapply(obstime,function(x){
+        sum0<-sum(ker(covar-zp[k],hopt[k])*exp(hbeta1[k]*(covar-zp[k])+hbeta2[k]*(covar-zp[k])^2)*(mtime>=x))
+        sum1<-sum(ker(covar-zp[k],hopt[k])*exp(hbeta1[k]*(covar-zp[k])+hbeta2[k]*(covar-zp[k])^2)*((covar-zp[k])/hopt[k])*(mtime>=x))
+        sum2<-sum(ker(covar-zp[k],hopt[k])*exp(hbeta1[k]*(covar-zp[k])+hbeta2[k]*(covar-zp[k])^2)*((covar-zp[k])/hopt[k])^2*(mtime>=x))
+        sum3<-sum(ker(covar-zp[k],hopt[k])*exp(hbeta1[k]*(covar-zp[k])+hbeta2[k]*(covar-zp[k])^2)*((covar-zp[k])/hopt[k])^3*(mtime>=x))
+        sum4<-sum(ker(covar-zp[k],hopt[k])*exp(hbeta1[k]*(covar-zp[k])+hbeta2[k]*(covar-zp[k])^2)*((covar-zp[k])/hopt[k])^4*(mtime>=x))
+        if(sum0==0){re<-c(0,0,0,0,0)} else{re<-c(sum1/sum0,sum2/sum0,sum2/sum0-(sum1/sum0)^2,(sum0*sum3-sum1*sum2)/sum0^2,sum4/sum0-(sum2/sum0)^2)}
+      })
+      a11<-sum(hopt[k]*ker(covar-zp[k],hopt[k])^2*Mut^2*exp(2*beta_covar)*((covar-zp[k])/hopt[k]-V[1,])^2)/nsub 
+      a12<-sum(hopt[k]*ker(covar-zp[k],hopt[k])^2*Mut^2*exp(2*beta_covar)*((covar-zp[k])/hopt[k]-V[1,])*(((covar-zp[k])/hopt[k])^2-V[2,]))/nsub 
+      a22<-sum(hopt[k]*ker(covar-zp[k],hopt[k])^2*Mut^2*exp(2*beta_covar)*(((covar-zp[k])/hopt[k])^2-V[2,])^2)/nsub 
+      b11<-sum(ker(covar-zp[k],hopt[k])*count*V[3,])/nsub
+      b12<-sum(ker(covar-zp[k],hopt[k])*count*V[4,])/nsub
+      b22<-sum(ker(covar-zp[k],hopt[k])*count*V[5,])/nsub
+      A<-matrix(c(a11,a12,a12,a22),nr=2)
+      B<-matrix(c(b11,b12,b12,b22),nr=2)    
+      Sig1<-solve(B)%*%A%*%solve(B)
+      Var[k]<-Sig1[1,1]/(nsub*hopt[k]^3)
+    }#####calculate the estimated covariance
+    All[[i]]<-list(Hbeta,hbeta1,Var,mu.t)
+  }
+  return(All)
+} #the simulation study for 500 replications of the proposed method
+simulation.ts<-function(nr){
   All<-list()
   tim<-seq(0.05,9.95,by=0.1)
   zp<-seq(0.04,2.98,by=0.06)
   for(i in 1:nr){
     set.seed(100*i+i)
     print(100*i+i)
+    data<-data.gen(nsub,max.obs,irate,len)
     Fvalue<-shape.fun(data,tim)
     Fk<-Fvalue[[1]]
     Fall<-Fvalue[[2]]
@@ -499,11 +566,9 @@ irate<-0.3
 len<-10
 beta<-c(0.01,0.01)
 nr<-500
-rdata<-data.gen(nsub,max.obs,irate,len)
-mixdata<-data.gen.mix(nsub,max.obs,irate,len)
-mixout<-simulation.est(nr,data = mixdata)
-kerout<-simulation.est(nr,data=rdata)
-tsout<-simulation.ts(nr,data=rdata)
+mixout<-simulation.est.mix(nr)
+kerout<-simulation.est.ran(nr)
+tsout<-simulation.ts(nr)
 save(kerout,file=paste(getwd(),"/kerpoisson.rda",sep=""))####save the simulation outcome
 save(mixout,file=paste(getwd(),"/kermixpoisson.rda",sep=""))
 save(tsout,file=paste(getwd(),"/tspoisson.rda",sep=""))
