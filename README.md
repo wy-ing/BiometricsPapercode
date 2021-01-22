@@ -27,7 +27,7 @@ The defined "cvscore()" and "cvscore.ts()" functions are the cross-validation sc
 
 The defined "choose.hb()" and "choose.hb.ts()" functions are the cross-validation approach for bandwidth selection of the proposed method and the two-stage approach, respectively;
 
-The defined "simulation.est()" and "simulation.ts()" are the simulation study for 500 replications of the proposed method and the two-satge approach, respectively;
+The defined "simulation.est.mix()", "simulation.est.ran()" and "simulation.ts.ran()" are the simulation study for 500 replications of the proposed method and the two-satge approach, respectively;
 
 The ploted figure saved as "cprandom.eps" produces Figure 3 in the Web Appendices, and Figure 3 in Respose to the comments;
 
